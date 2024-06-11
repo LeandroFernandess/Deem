@@ -5,11 +5,6 @@ from forms.formulario import form
 from table.tabela import tabela
 from streamlit_navigation_bar import st_navbar
 
-#                                                                       ------------------------------------------------------------------------------
-#                                                                       |                           Criando a barra lateral:                         |
-#                                                                       ------------------------------------------------------------------------------
-
-
 opção_selecionada = st_navbar(["Formulário de Deem 📝", "Visão Geral 📊"])
 
 # Exibindo o conteúdo dependendo da opção selecionada:
