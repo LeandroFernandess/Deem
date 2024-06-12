@@ -1,6 +1,25 @@
+import streamlit as st
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+from firebase_admin import storage
+import datetime 
 from data.codigos import dicionario_dados as dados_base
 from data.funcionarios import dicionario_funcionarios as funcionarios_base
-import streamlit as st
+
+# Credenciais do seu projeto Firebase
+cred = credentials.Certificate('Streamlit\data\credentials.json') 
+
+# Objeto do Firestore
+db = firestore.client()
+# Objeto do Storage
+bucket = storage.bucket()
+
+# Inicializar o Firebase (se ainda não estiver)
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred, {
+        'storageBucket': 'projeto-deem.appspot.com' # Substitua pelo nome do seu bucket
+    })
 
 
 # Função para obter os dados dos códigos com cache
@@ -80,21 +99,45 @@ def atualizar_dados():
 
 # Função para salvar os dados no cache
 def salvar_dados():
-    dados = {
-        "Matrícula": st.session_state["input_matricula"],
-        "Código": st.session_state["input_codigo"],
-        "Quantidade": st.session_state["input_quantidade"],
-        "Relação de Carga": st.session_state["input_rc"],
-        "Tipo da DEEM": st.session_state["input_tipo"],
-        "Área": st.session_state["input_área"],
-        "Comentário": st.session_state["input_comentário"],
-        "Data": st.session_state["input_data"],
-        "Descrição": st.session_state["input_descrição"],
-        "Valor Unitário": st.session_state["input_valor_unitário"],
-        "Valor Total": st.session_state["input_valor_total"],
-        "Depósito": st.session_state["input_depósito"],
-    }
-    st.session_state["dados_formulario"].append(dados)
+    try:
+        # Upload da imagem para o Storage
+        foto = st.session_state["input_foto"] 
+        if foto:
+            nome_foto = f"fotos/{foto.name}"
+            blob = bucket.blob(nome_foto)
+            blob.upload_from_string(foto.read(), content_type=foto.type)
+            foto_url = blob.public_url
+        else:
+            foto_url = None
+
+        # Converter a data para timestamp
+        data_timestamp = datetime.datetime.combine(
+            st.session_state["input_data"], datetime.datetime.min.time()
+        )
+
+        # Dados para o Firestore
+        dados = {
+            "Matrícula": st.session_state["input_matricula"],
+            "Código": st.session_state["input_codigo"],
+            "Quantidade": st.session_state["input_quantidade"],
+            "Relação de Carga": st.session_state["input_rc"],
+            "Tipo da DEEM": st.session_state["input_tipo"],
+            "Área": st.session_state["input_área"],
+            "Comentário": st.session_state["input_comentário"],
+            "Data": data_timestamp,
+            "Descrição": st.session_state["input_descrição"],
+            "Valor Unitário": st.session_state["input_valor_unitário"],
+            "Valor Total": st.session_state["input_valor_total"],
+            "Depósito": st.session_state["input_depósito"],
+            "Foto_URL": foto_url,  
+        }
+
+        # Salvar no Firestore
+        db.collection('deems').document().set(dados)
+        st.success("Dados inseridos com sucesso no Firebase!")
+
+    except Exception as e:
+        st.error(f"Erro ao salvar dados no Firebase: {e}")
 
 
 # Função principal do formulário
